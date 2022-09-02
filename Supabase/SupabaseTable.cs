@@ -5,6 +5,7 @@ using Postgrest;
 using Postgrest.Models;
 using Supabase.Realtime;
 using static Supabase.Client;
+using ClientOptions = Postgrest.ClientOptions;
 
 namespace Supabase
 {
@@ -12,11 +13,14 @@ namespace Supabase
     {
         private Channel channel;
 
-        public SupabaseTable() : base(Client.Instance.RestUrl, new Postgrest.ClientOptions { Headers = Instance.GetAuthHeaders(), Schema = Instance.Schema })
-        { }
+        public SupabaseTable() : base(Instance.RestUrl,
+            new ClientOptions { Headers = Instance.GetAuthHeaders(), Schema = Instance.Schema })
+        {
+        }
 
-        public SupabaseTable(string restUrl, Postgrest.ClientOptions options) : base(restUrl, options)
-        { }
+        public SupabaseTable(string restUrl, ClientOptions options) : base(restUrl, options)
+        {
+        }
 
         public async Task<Channel> On(ChannelEventType e, Action<object, SocketResponseEventArgs> action)
         {
@@ -27,9 +31,7 @@ namespace Supabase
                 // In regard to: https://github.com/supabase/supabase-js/pull/270
                 var headers = Instance.GetAuthHeaders();
                 if (headers.ContainsKey("Authorization"))
-                {
                     parameters.Add("user_token", headers["Authorization"].Split(' ')[1]);
-                }
 
                 channel = Instance.Realtime.Channel("realtime", Instance.Schema, TableName, parameters: parameters);
             }
@@ -57,7 +59,9 @@ namespace Supabase
             {
                 await channel.Subscribe();
             }
-            catch { }
+            catch
+            {
+            }
 
             return channel;
         }

@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Postgrest;
 using Supabase;
-using Supabase.Realtime;
 using SupabaseTests.Models;
 using static Supabase.Client;
 
@@ -13,21 +12,20 @@ namespace SupabaseTests
     [TestClass]
     public class Client
     {
+        private static readonly Random random = new Random();
         private string password = "I@M@SuperP@ssWord";
-
-        private static Random random = new Random();
 
         private static string RandomString(int length)
         {
             const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
             return new string(Enumerable.Repeat(chars, length)
-              .Select(s => s[random.Next(s.Length)]).ToArray());
+                .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
         [TestInitialize]
         public async Task InitializeTest()
         {
-            await InitializeAsync("http://localhost", null, new Supabase.SupabaseOptions
+            await InitializeAsync("http://localhost", null, new SupabaseOptions
             {
                 AuthUrlFormat = "{0}:9999",
                 RealtimeUrlFormat = "{0}:4000/socket",
@@ -71,14 +69,14 @@ namespace SupabaseTests
         [TestMethod("SupabaseModel: Successfully Updates")]
         public async Task SupabaseModelUpdates()
         {
-            var model = new Models.Channel { Slug = Guid.NewGuid().ToString() };
-            var insertResult = await Instance.From<Models.Channel>().Insert(model);
+            var model = new Channel { Slug = Guid.NewGuid().ToString() };
+            var insertResult = await Instance.From<Channel>().Insert(model);
             var newChannel = insertResult.Models.FirstOrDefault();
 
             var newSlug = $"Updated Slug @ {DateTime.Now.ToLocalTime()}";
             newChannel.Slug = newSlug;
 
-            var updatedResult = await newChannel.Update<Models.Channel>();
+            var updatedResult = await newChannel.Update<Channel>();
 
             Assert.AreEqual(newSlug, updatedResult.Models.First().Slug);
         }
@@ -87,14 +85,14 @@ namespace SupabaseTests
         public async Task SupabaseModelDeletes()
         {
             var slug = Guid.NewGuid().ToString();
-            var model = new Models.Channel { Slug = slug };
+            var model = new Channel { Slug = slug };
 
-            var insertResult = await Instance.From<Models.Channel>().Insert(model);
+            var insertResult = await Instance.From<Channel>().Insert(model);
             var newChannel = insertResult.Models.FirstOrDefault();
 
-            await newChannel.Delete<Models.Channel>();
+            await newChannel.Delete<Channel>();
 
-            var result = await Instance.From<Models.Channel>().Filter("slug", Postgrest.Constants.Operator.Equals, slug).Get();
+            var result = await Instance.From<Channel>().Filter("slug", Constants.Operator.Equals, slug).Get();
 
             Assert.AreEqual(0, result.Models.Count);
         }

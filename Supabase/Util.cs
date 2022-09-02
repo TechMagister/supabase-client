@@ -1,7 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.InteropServices;
+﻿using System.Reflection;
 
 namespace Supabase
 {
@@ -9,11 +6,12 @@ namespace Supabase
     {
         public static string GetAssemblyVersion()
         {
-            var assembly = typeof(Supabase.Client).Assembly;
-            var informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+            var assembly = typeof(Client).Assembly;
+            var informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                .InformationalVersion;
             var name = assembly.GetName().Name;
 
-            return $"{name.ToString().ToLower()}-csharp/{informationVersion}";
+            return $"{name.ToLower()}-csharp/{informationVersion}";
         }
     }
 }

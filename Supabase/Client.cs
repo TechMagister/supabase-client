@@ -3,16 +3,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Postgrest;
 using Postgrest.Models;
 using Postgrest.Responses;
 using Supabase.Gotrue;
-using static Supabase.Functions.Client;
+using ClientOptions = Postgrest.ClientOptions;
 
 namespace Supabase
 {
     /// <summary>
-    /// A singleton class representing a Supabase Client.
+    ///     A singleton class representing a Supabase Client.
     /// </summary>
     public class Client
     {
@@ -24,24 +23,22 @@ namespace Supabase
             All
         }
 
+        private static Client instance;
+
+        private SupabaseOptions options;
+
         /// <summary>
-        /// Supabase Auth allows you to create and manage user sessions for access to data that is secured by access policies.
+        ///     Supabase Auth allows you to create and manage user sessions for access to data that is secured by access policies.
         /// </summary>
         public Gotrue.Client Auth { get; private set; }
+
         public Realtime.Client Realtime { get; private set; }
 
         /// <summary>
-        /// Supabase Edge functions allow you to deploy and invoke edge functions.
+        ///     Supabase Edge functions allow you to deploy and invoke edge functions.
         /// </summary>
         public SupabaseFunctions Functions => new SupabaseFunctions(instance.FunctionsUrl, instance.GetAuthHeaders());
 
-        private Postgrest.Client Postgrest() => global::Postgrest.Client.Initialize(instance.RestUrl, new Postgrest.ClientOptions
-        {
-            Headers = instance.GetAuthHeaders(),
-            Schema = Schema
-        });
-
-        private static Client instance;
         public static Client Instance
         {
             get
@@ -51,6 +48,7 @@ namespace Supabase
                     Debug.WriteLine("Supabase must be initialized before it is called.");
                     return null;
                 }
+
                 return instance;
             }
         }
@@ -64,19 +62,34 @@ namespace Supabase
         public string FunctionsUrl { get; private set; }
         public string Schema { get; private set; }
 
-        private SupabaseOptions options;
+        /// <summary>
+        ///     Supabase Storage allows you to manage user-generated content, such as photos or videos.
+        /// </summary>
+        public Storage.Client Storage => new Storage.Client(StorageUrl, GetAuthHeaders());
 
-        private Client() { }
+        private Client()
+        {
+        }
+
+        private Postgrest.Client Postgrest()
+        {
+            return global::Postgrest.Client.Initialize(instance.RestUrl, new ClientOptions
+            {
+                Headers = instance.GetAuthHeaders(),
+                Schema = Schema
+            });
+        }
 
 
         /// <summary>
-        /// Initializes a Supabase Client.
+        ///     Initializes a Supabase Client.
         /// </summary>
         /// <param name="supabaseUrl"></param>
         /// <param name="supabaseKey"></param>
         /// <param name="options"></param>
         /// <returns></returns>
-        public static void Initialize(string supabaseUrl, string supabaseKey, SupabaseOptions options = null, Action<Client> callback = null)
+        public static void Initialize(string supabaseUrl, string supabaseKey, SupabaseOptions options = null,
+            Action<Client> callback = null)
         {
             Task.Run(async () =>
             {
@@ -86,13 +99,14 @@ namespace Supabase
         }
 
         /// <summary>
-        /// Initializes a Supabase Client Asynchronously.
+        ///     Initializes a Supabase Client Asynchronously.
         /// </summary>
         /// <param name="supabaseUrl"></param>
         /// <param name="supabaseKey"></param>
         /// <param name="options"></param>
         /// <returns></returns>
-        public static async Task<Client> InitializeAsync(string supabaseUrl, string supabaseKey, SupabaseOptions options = null)
+        public static async Task<Client> InitializeAsync(string supabaseUrl, string supabaseKey,
+            SupabaseOptions options = null)
         {
             instance = new Client();
 
@@ -143,10 +157,7 @@ namespace Supabase
                     Parameters = { ApiKey = instance.SupabaseKey }
                 });
 
-                if (options.AutoConnectRealtime)
-                {
-                    await instance.Realtime.ConnectAsync();
-                }
+                if (options.AutoConnectRealtime) await instance.Realtime.ConnectAsync();
             }
 
             return instance;
@@ -160,10 +171,7 @@ namespace Supabase
                 // Ref: https://github.com/supabase-community/supabase-csharp/issues/12
                 case Gotrue.Client.AuthState.SignedIn:
                 case Gotrue.Client.AuthState.TokenRefreshed:
-                    if (Instance.Realtime != null)
-                    {
-                        Instance.Realtime.SetAuth(Instance.Auth.CurrentSession.AccessToken);
-                    }
+                    if (Instance.Realtime != null) Instance.Realtime.SetAuth(Instance.Auth.CurrentSession.AccessToken);
                     break;
 
                 // Remove Realtime Subscriptions on Auth Signout.
@@ -175,29 +183,31 @@ namespace Supabase
 
                         Instance.Realtime.Disconnect();
                     }
+
                     break;
             }
         }
 
         /// <summary>
-        /// Supabase Storage allows you to manage user-generated content, such as photos or videos.
-        /// </summary>
-        public Storage.Client Storage => new Storage.Client(StorageUrl, GetAuthHeaders());
-
-        /// <summary>
-        /// Gets the Postgrest client to prepare for a query.
+        ///     Gets the Postgrest client to prepare for a query.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public SupabaseTable<T> From<T>() where T : BaseModel, new() => new SupabaseTable<T>();
+        public SupabaseTable<T> From<T>() where T : BaseModel, new()
+        {
+            return new SupabaseTable<T>();
+        }
 
         /// <summary>
-        /// Runs a remote procedure.
+        ///     Runs a remote procedure.
         /// </summary>
         /// <param name="procedureName"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        public Task<BaseResponse> Rpc(string procedureName, Dictionary<string, object> parameters) => Postgrest().Rpc(procedureName, parameters);
+        public Task<BaseResponse> Rpc(string procedureName, Dictionary<string, object> parameters)
+        {
+            return Postgrest().Rpc(procedureName, parameters);
+        }
 
 
         internal Dictionary<string, string> GetAuthHeaders()
@@ -222,48 +232,48 @@ namespace Supabase
     }
 
     /// <summary>
-    /// Options available for Supabase Client Configuration
+    ///     Options available for Supabase Client Configuration
     /// </summary>
     public class SupabaseOptions
     {
+        public Dictionary<string, string> Headers = new Dictionary<string, string>();
         public string Schema = "public";
 
         /// <summary>
-        /// Should the Client automatically handle refreshing the User's Token?
+        ///     Function to destroy a session.
         /// </summary>
-        public bool AutoRefreshToken { get; set; } = true;
+        public Func<Task<bool>> SessionDestroyer = () => Task.FromResult(true);
 
         /// <summary>
-        /// Should the Client Initialize Realtime?
+        ///     Function called to persist the session (probably on a filesystem or cookie)
         /// </summary>
-        public bool ShouldInitializeRealtime { get; set; } = false;
+        public Func<Session, Task<bool>> SessionPersistor = session => Task.FromResult(true);
 
         /// <summary>
-        /// Should the Client automatically connect to Realtime?
-        /// </summary>
-        public bool AutoConnectRealtime { get; set; } = false;
-
-        /// <summary>
-        /// Should the Client call <see cref="SessionPersistor"/>, <see cref="SessionRetriever"/>, and <see cref="SessionDestroyer"/>?
-        /// </summary>
-        public bool PersistSession { get; set; } = true;
-
-        /// <summary>
-        /// Function called to persist the session (probably on a filesystem or cookie)
-        /// </summary>
-        public Func<Session, Task<bool>> SessionPersistor = (Session session) => Task.FromResult<bool>(true);
-
-        /// <summary>
-        /// Function to retrieve a session (probably from the filesystem or cookie)
+        ///     Function to retrieve a session (probably from the filesystem or cookie)
         /// </summary>
         public Func<Task<Session>> SessionRetriever = () => Task.FromResult<Session>(null);
 
         /// <summary>
-        /// Function to destroy a session.
+        ///     Should the Client automatically handle refreshing the User's Token?
         /// </summary>
-        public Func<Task<bool>> SessionDestroyer = () => Task.FromResult<bool>(true);
+        public bool AutoRefreshToken { get; set; } = true;
 
-        public Dictionary<string, string> Headers = new Dictionary<string, string>();
+        /// <summary>
+        ///     Should the Client Initialize Realtime?
+        /// </summary>
+        public bool ShouldInitializeRealtime { get; set; } = false;
+
+        /// <summary>
+        ///     Should the Client automatically connect to Realtime?
+        /// </summary>
+        public bool AutoConnectRealtime { get; set; } = false;
+
+        /// <summary>
+        ///     Should the Client call <see cref="SessionPersistor" />, <see cref="SessionRetriever" />, and
+        ///     <see cref="SessionDestroyer" />?
+        /// </summary>
+        public bool PersistSession { get; set; } = true;
 
         public string AuthUrlFormat { get; set; } = "{0}/auth/v1";
         public string RestUrlFormat { get; set; } = "{0}/rest/v1";

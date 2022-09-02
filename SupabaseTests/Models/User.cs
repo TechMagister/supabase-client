@@ -1,7 +1,5 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Postgrest.Attributes;
-using Postgrest.Models;
 using Supabase;
 
 namespace SupabaseTests.Models

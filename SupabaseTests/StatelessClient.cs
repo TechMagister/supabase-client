@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Supabase;
 using SupabaseTests.Models;
 using static Supabase.StatelessClient;
 
@@ -10,14 +10,14 @@ namespace SupabaseTests
     [TestClass]
     public class StatelessClient
     {
-
-        private string supabaseUrl = "http://localhost";
-        private Supabase.SupabaseOptions options = new Supabase.SupabaseOptions
+        private readonly SupabaseOptions options = new SupabaseOptions
         {
             AuthUrlFormat = "{0}:9999",
             RealtimeUrlFormat = "{0}:4000/socket",
             RestUrlFormat = "{0}:3000"
         };
+
+        private readonly string supabaseUrl = "http://localhost";
 
         [TestMethod("Can access Stateless REST")]
         public async Task CanAccessStatelessRest()
@@ -45,12 +45,13 @@ namespace SupabaseTests
         [TestMethod("User defined Headers will override internal headers")]
         public void CanOverrideInternalHeaders()
         {
-            Supabase.SupabaseOptions options = new Supabase.SupabaseOptions
+            var options = new SupabaseOptions
             {
                 AuthUrlFormat = "{0}:9999",
                 RealtimeUrlFormat = "{0}:4000/socket",
                 RestUrlFormat = "{0}:3000",
-                Headers = new Dictionary<string, string> {
+                Headers = new Dictionary<string, string>
+                {
                     { "Authorization", "Bearer 123" }
                 }
             };
