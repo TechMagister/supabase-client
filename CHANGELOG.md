@@ -10,7 +10,8 @@
 - Update dependency: postgrest-csharp@2.0.9
 - Update dependency: realtime-csharp@3.0.1
 - Update dependency: supabase-storage-csharp@1.1.0
-    - API Change [Breaking/Minor] Library no longer uses `WebClient` and instead leverages `HttpClient`. Progress events on `Upload` and `Download` are now handled with `EventHandler<float>` instead of `WebClient` EventHandlers.
+    - API Change [Breaking/Minor] Library no longer uses `WebClient` and instead leverages `HttpClient`. Progress events
+      on `Upload` and `Download` are now handled with `EventHandler<float>` instead of `WebClient` EventHandlers.
 
 ## 0.4.4 - 2022-5-24
 
@@ -38,10 +39,9 @@
 
 - Update dependency: postgres-csharp@2.0.7
 
-
 ## 0.3.4 - 2022-03-28
 
-- Update dependency: gotrue-csharp@2.4.0 
+- Update dependency: gotrue-csharp@2.4.0
 
 ## 0.3.3 - 2022-02-27
 
@@ -51,19 +51,24 @@
 ## 0.3.2 - 2022-02-18
 
 - Update dependency: realtime-csharp@3.0.0
-    - Exchange existing websocket client: [WebSocketSharp](https://github.com/sta/websocket-sharp) for [Marfusios/websocket-client](https://github.com/Marfusios/websocket-client) which adds support for Blazor WASM apps.
+    - Exchange existing websocket client: [WebSocketSharp](https://github.com/sta/websocket-sharp)
+      for [Marfusios/websocket-client](https://github.com/Marfusios/websocket-client) which adds support for Blazor WASM
+      apps.
       Ref: [#14](https://github.com/supabase-community/realtime-csharp/pull/14)
 
 ## 0.3.1 - 2022-01-20
 
 - Update dependency: gotrue-csharp@2.3.5
-    - [#23](https://github.com/supabase-community/gotrue-csharp/pull/23) Added `redirect_url` option for MagicLink sign in (Thanks [@MisterJimson](https://github.com/MisterJimson))
-    - [#21](https://github.com/supabase-community/gotrue-csharp/pull/21) Added SignOut method to Stateless Client (Thanks [@fplaras](https://github.com/fplaras))
+    - [#23](https://github.com/supabase-community/gotrue-csharp/pull/23) Added `redirect_url` option for MagicLink sign
+      in (Thanks [@MisterJimson](https://github.com/MisterJimson))
+    - [#21](https://github.com/supabase-community/gotrue-csharp/pull/21) Added SignOut method to Stateless Client (
+      Thanks [@fplaras](https://github.com/fplaras))
 
 ## 0.3.0 - 2021-12-30
 
 - Update dependency: postgrest-csharp@2.0.6
-    - Add support for `NullValueHandling` to be specified on a `Column` Attribute and for it to be honored on Inserts and Updates. Defaults to: `NullValueHandling.Include`.
+    - Add support for `NullValueHandling` to be specified on a `Column` Attribute and for it to be honored on Inserts
+      and Updates. Defaults to: `NullValueHandling.Include`.
         - Implements [#38](https://github.com/supabase-community/postgrest-csharp/issues/38)
 - Update dependency: realtime-csharp@2.0.8
     - Implement Upstream Realtime RLS Error Broadcast Handler
@@ -77,8 +82,10 @@
         - Fixes [#19](https://github.com/supabase-community/gotrue-csharp/issues/19)
         - Developers who were using a `null` check on `Session.User` will need to adjust accordingly.
 - Update dependency: postgrest-csharp@2.0.5
-    - Fix for [#37](https://github.com/supabase-community/postgrest-csharp/issues/37) - Return Type `minimal` would fail to resolve because of incorrect `Accept` headers. Added header and test to verify for future.
-    - Fix for [#36](https://github.com/supabase-community/postgrest-csharp/issues/36) - Inserting/Upserting bulk records would fail while doing an unnecessary generic coercion.
+    - Fix for [#37](https://github.com/supabase-community/postgrest-csharp/issues/37) - Return Type `minimal` would fail
+      to resolve because of incorrect `Accept` headers. Added header and test to verify for future.
+    - Fix for [#36](https://github.com/supabase-community/postgrest-csharp/issues/36) - Inserting/Upserting bulk records
+      would fail while doing an unnecessary generic coercion.
 
 ## 0.2.11 - 2021-12-24
 
@@ -90,7 +97,8 @@
 
 ## 0.2.10 - 2021-12-23
 
-- Update dependency: gotrue-csharp@2.3.0 (adds metadata support for user signup, see [#14](https://github.com/supabase/community/issues/14))
+- Update dependency: gotrue-csharp@2.3.0 (adds metadata support for user signup,
+  see [#14](https://github.com/supabase/community/issues/14))
 
 ## 0.2.9 - 2021-12-9
 

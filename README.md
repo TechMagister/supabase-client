@@ -13,9 +13,11 @@
 
 Integrate your [Supabase](https://supabase.io) projects with C#.
 
-Includes C# features to make supabase function more like an ORM - specifically the ability to leverage **strongly typed models**.
+Includes C# features to make supabase function more like an ORM - specifically the ability to leverage **strongly typed
+models**.
 
-API is heavily modeled after the [supabase-js repo](https://github.com/supabase/supabase-js) and [postgrest-js repo](https://github.com/supabase/postgrest-js).
+API is heavily modeled after the [supabase-js repo](https://github.com/supabase/supabase-js)
+and [postgrest-js repo](https://github.com/supabase/postgrest-js).
 
 ## Status
 
@@ -28,7 +30,8 @@ API is heavily modeled after the [supabase-js repo](https://github.com/supabase/
 
 ## Getting Started
 
-Care has been taken to make API interactions mirror - as much as possible - the Javascript API. However, there are some places
+Care has been taken to make API interactions mirror - as much as possible - the Javascript API. However, there are some
+places
 where Supabase-csharp deviates to make use of C# goodies that Javascript doesn't have.
 
 Getting started is pretty easy!
@@ -95,9 +98,11 @@ public async void Main()
 
 ### Models:
 
-Supabase-csharp is _heavily_ dependent on Models deriving from `SupabaseModel` (which derive from Postgrest-chsharp's `BaseModel`). To interact with the API, one must have the associated model specified.
+Supabase-csharp is _heavily_ dependent on Models deriving from `SupabaseModel` (which derive from
+Postgrest-chsharp's `BaseModel`). To interact with the API, one must have the associated model specified.
 
-Leverage `Table`,`PrimaryKey`, and `Column` attributes to specify names of classes/properties that are different from their C# Versions.
+Leverage `Table`,`PrimaryKey`, and `Column` attributes to specify names of classes/properties that are different from
+their C# Versions.
 
 ```c#
 [Table("messages")]
@@ -129,3 +134,9 @@ Made with [contrib.rocks](https://contrib.rocks/preview?repo=supabase-community%
 ## Contributing
 
 We are more than happy to have contributions! Please submit a PR.
+
+# Refactor
+
+- Add interface
+- Lint and format
+- User.AppMetadata is now Dictionary<string, string> instead of Dictionary<string, object>
