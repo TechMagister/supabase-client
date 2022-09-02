@@ -1,7 +1,7 @@
 namespace SupabaseAuth;
 
 /// <summary>
-///     Specifies the functionality expected from the `SignInAsync` method
+///     Specifies the functionality expected from the `SignIn` method
 /// </summary>
 public enum SignInType
 {

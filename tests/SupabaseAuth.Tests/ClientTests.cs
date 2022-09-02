@@ -15,17 +15,17 @@ namespace SupabaseAuth.Tests;
 public class ClientTests
 {
     private static readonly Random Random = new();
+    private readonly IAuthClient _client;
 
     private readonly string _password = "I@M@SuperP@ssWord";
-    private readonly IAuthClient _client;
 
     public ClientTests()
     {
-        _client = AuthClient.CreateAsync(new ClientOptions
+        _client = new AuthClient(new ClientOptions
         {
             Url = "http://localhost:9999",
             AllowUnconfirmedUserSessions = true
-        }).Result;
+        });
     }
 
     private static string RandomString(int length)
@@ -98,37 +98,16 @@ public class ClientTests
         await Assert.ThrowsAsync<BadRequestException>(async () => { await _client.SignUpAsync(email, _password); });
     }
 
-    [Fact(DisplayName = "Client: Triggers Token Refreshed Event")]
-    public async Task ClientTriggersTokenRefreshedEvent()
-    {
-        var tsc = new TaskCompletionSource<string>();
-
-        var email = $"{RandomString(12)}@supabase.io";
-        var user = await _client.SignUpAsync(email, _password);
-
-        _client.StateChanged += (sender, args) =>
-        {
-            if (args.State == AuthState.TokenRefreshed) tsc.SetResult(_client.CurrentSession.AccessToken);
-        };
-
-        await _client.RefreshSessionAsync();
-
-        var newToken = await tsc.Task;
-
-        Assert.NotEqual(user.RefreshToken, _client.CurrentSession.RefreshToken);
-    }
-
     [Fact(DisplayName = "Client: Signs In User (Email, Phone, Refresh token)")]
     public async Task ClientSignsIn()
     {
-        Session session = null;
         var refreshToken = "";
 
         // Emails
         var email = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(email, _password);
+        var session = await _client.SignUpAsync(email, _password);
 
-        await _client.SignOutAsync();
+        await _client.SignOutAsync(session.AccessToken);
 
         session = await _client.SignInAsync(email, _password);
 
@@ -138,9 +117,9 @@ public class ClientTests
 
         // Phones
         var phone = GetRandomPhoneNumber();
-        await _client.SignUpAsync(SignUpType.Phone, phone, _password);
+        session = await _client.SignUpAsync(SignUpType.Phone, phone, _password);
 
-        await _client.SignOutAsync();
+        await _client.SignOutAsync(session.AccessToken);
 
         session = await _client.SignInAsync(SignInType.Phone, phone, _password);
 
@@ -162,9 +141,9 @@ public class ClientTests
     public async Task ClientSendsMagicLoginEmail()
     {
         var user = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(user, _password);
+        var session = await _client.SignUpAsync(user, _password);
 
-        await _client.SignOutAsync();
+        await _client.SignOutAsync(session.AccessToken);
 
         var result = await _client.SignInAsync(user);
         Assert.True(result);
@@ -175,9 +154,9 @@ public class ClientTests
     {
         var user = $"{RandomString(12)}@supabase.io";
         var user2 = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(user, _password);
+        var session = await _client.SignUpAsync(user, _password);
 
-        await _client.SignOutAsync();
+        await _client.SignOutAsync(session.AccessToken);
 
         var result = await _client.SendMagicLinkAsync(user);
         var result2 = await _client.SendMagicLinkAsync(user2,
@@ -188,12 +167,12 @@ public class ClientTests
     }
 
     [Fact(DisplayName = "Client: Returns Auth Url for Provider")]
-    public async Task ClientReturnsAuthUrlForProvider()
+    public void ClientReturnsAuthUrlForProvider()
     {
-        var result1 = await _client.SignInAsync(Provider.Google);
+        var result1 = _client.SignIn(Provider.Google);
         Assert.Equal("http://localhost:9999/authorize?provider=google", result1);
 
-        var result2 = await _client.SignInAsync(Provider.Google, "special scopes please");
+        var result2 = _client.SignIn(Provider.Google, "special scopes please");
         Assert.Equal("http://localhost:9999/authorize?provider=google&scopes=special+scopes+please", result2);
     }
 
@@ -210,11 +189,11 @@ public class ClientTests
                 { "hello", "world" }
             }
         };
-        var result = await _client.UpdateAsync(attributes);
-        Assert.Equal(email, _client.CurrentUser.Email);
-        Assert.NotNull(_client.CurrentUser.UserMetadata);
+        var result = await _client.UpdateAsync(session.AccessToken, attributes);
+        Assert.Equal(email, session.User.Email);
+        Assert.NotNull(session.User.UserMetadata);
 
-        await _client.SignOutAsync();
+        await _client.SignOutAsync(session.AccessToken);
         var token = GenerateServiceRoleToken();
         var result2 = await _client.UpdateUserByIdAsync(token, session.User.Id, new AdminUserAttributes
         {
@@ -230,30 +209,19 @@ public class ClientTests
     [Fact(DisplayName = "Client: Returns current user")]
     public async Task ClientGetUser()
     {
-        var user = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(user, _password);
+        var email = $"{RandomString(12)}@supabase.io";
+        var session = await _client.SignUpAsync(email, _password);
 
-        Assert.Equal(user, _client.CurrentUser.Email);
-    }
-
-    [Fact(DisplayName = "Client: Nulls CurrentUser on SignOut")]
-    public async Task ClientGetUserAfterLogOut()
-    {
-        var user = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(user, _password);
-
-        await _client.SignOutAsync();
-
-        Assert.Null(_client.CurrentUser);
+        Assert.Equal(email, session.User.Email);
     }
 
     [Fact(DisplayName = "Client: Throws Exception on Invalid Username and Password")]
     public async Task ClientSignsInUserWrongPassword()
     {
         var user = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(user, _password);
+        var session = await _client.SignUpAsync(user, _password);
 
-        await _client.SignOutAsync();
+        await _client.SignOutAsync(session.AccessToken);
 
         await Assert.ThrowsAsync<BadRequestException>(async () =>
         {
@@ -380,8 +348,8 @@ public class ClientTests
     public async Task ClientDeletesUser()
     {
         var user = $"{RandomString(12)}@supabase.io";
-        await _client.SignUpAsync(user, _password);
-        var uid = _client.CurrentUser.Id;
+        var session = await _client.SignUpAsync(user, _password);
+        var uid = session.User.Id;
 
         var serviceRoleKey = GenerateServiceRoleToken();
         var result = await _client.DeleteUserAsync(uid, serviceRoleKey);

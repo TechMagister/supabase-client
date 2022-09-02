@@ -6,21 +6,6 @@ namespace SupabaseAuth;
 public interface IAuthClient
 {
     /// <summary>
-    ///     The current User
-    /// </summary>
-    User? CurrentUser { get; }
-
-    /// <summary>
-    ///     The current Session
-    /// </summary>
-    Session? CurrentSession { get; }
-
-    /// <summary>
-    ///     Event Handler that raises an event when a user signs in, signs out, recovers password, or updates their record.
-    /// </summary>
-    event EventHandler<ClientStateChanged> StateChanged;
-
-    /// <summary>
     ///     Signs up a user by email address
     /// </summary>
     /// <param name="email"></param>
@@ -73,7 +58,7 @@ public interface IAuthClient
     /// </summary>
     /// <example>
     ///     var client = Supabase.Gotrue.Client.Initialize(options);
-    ///     var url = client.SignInAsync(Provider.Github);
+    ///     var url = client.SignIn(Provider.Github);
     ///     // Do Redirect User
     ///     // Example code
     ///     Application.HasRecievedOauth += async (uri) => {
@@ -83,7 +68,7 @@ public interface IAuthClient
     /// <param name="provider"></param>
     /// <param name="scopes">A space-separated list of scopes granted to the OAuth application.</param>
     /// <returns></returns>
-    Task<string> SignInAsync(Provider provider, string? scopes = null);
+    string SignIn(Provider provider, string? scopes = null);
 
     /// <summary>
     ///     Sends a Magic email login link to the specified email.
@@ -104,15 +89,18 @@ public interface IAuthClient
     /// <summary>
     ///     Signs out a user and invalidates the current token.
     /// </summary>
+    /// <param name="accessToken"></param>
+    /// >
     /// <returns></returns>
-    Task SignOutAsync();
+    Task SignOutAsync(string accessToken);
 
     /// <summary>
     ///     Updates a User.
     /// </summary>
+    /// <param name="accessToken"></param>
     /// <param name="attributes"></param>
     /// <returns></returns>
-    Task<User?> UpdateAsync(UserAttributes attributes);
+    Task<User?> UpdateAsync(string accessToken, UserAttributes attributes);
 
     /// <summary>
     ///     Sends an invite email link to the specified email.
@@ -189,15 +177,10 @@ public interface IAuthClient
     /// <summary>
     ///     Refreshes the currently logged in User's Session.
     /// </summary>
+    /// <param name="refreshToken"></param>
+    /// >
     /// <returns></returns>
-    Task<Session?> RefreshSessionAsync();
-
-    /// <summary>
-    ///     Overrides the JWT on the current session. The JWT will then be sent in all subsequent network requests.
-    /// </summary>
-    /// <param name="accessToken">The JWT access token.</param>
-    /// <returns>Session.</returns>
-    Session? SetAuthAsync(string accessToken);
+    Task<Session> RefreshSessionAsync(string refreshToken);
 
     /// <summary>
     ///     Parses a <see cref="Session" /> out of a <see cref="Uri" />'s Query parameters.
@@ -206,10 +189,4 @@ public interface IAuthClient
     /// <param name="storeSession"></param>
     /// <returns></returns>
     Task<Session?> GetSessionFromUrlAsync(Uri uri, bool storeSession = true);
-
-    /// <summary>
-    ///     Retrieves the Session by calling <see cref="ClientOptions.SessionRetriever" /> - sets internal state and timers.
-    /// </summary>
-    /// <returns></returns>
-    Task<Session?> RetrieveSessionAsync();
 }

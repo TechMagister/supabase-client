@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Web;
+﻿using System.Web;
 using SupabaseAuth.Attributes;
 using SupabaseAuth.Options;
 
@@ -9,176 +8,30 @@ public class AuthClient : IAuthClient
 {
     private readonly Api _api;
 
-    /// <summary>
-    ///     Internal timer reference for Refreshing Tokens (<see cref="AutoRefreshToken" />)
-    /// </summary>
-    private Timer? _refreshTimer;
-
-    /// <summary>
-    ///     Should Client Refresh Token Automatically? (via <see cref="ClientOptions" />)
-    /// </summary>
-    private bool AutoRefreshToken { get; }
-
-    /// <summary>
-    ///     Should Client Persist Session? (via <see cref="ClientOptions" />)
-    /// </summary>
-    private bool ShouldPersistSession { get; }
-
-    /// <summary>
-    ///     User defined function (via <see cref="ClientOptions" />) to persist the session.
-    /// </summary>
-    private Func<Session?, Task<bool>> SessionPersistor { get; }
-
-    /// <summary>
-    ///     User defined function (via <see cref="ClientOptions" />) to retrieve the session.
-    /// </summary>
-    private Func<Task<Session?>> SessionRetriever { get; }
-
-    /// <summary>
-    ///     User defined function (via <see cref="ClientOptions" />) to destroy the session.
-    /// </summary>
-    private Func<Task<bool>> SessionDestroyer { get; }
-
-    /// <summary>
-    ///     The initialized client options.
-    /// </summary>
-    private ClientOptions Options { get; }
-
-    private AuthClient(ClientOptions? options)
+    public AuthClient(ClientOptions options)
     {
-        options ??= new ClientOptions();
+        _ = options ?? throw new ArgumentNullException(nameof(options));
+        ArgumentNullException.ThrowIfNull(options.Url);
 
-        Options = options;
-        AutoRefreshToken = options.AutoRefreshToken;
-        ShouldPersistSession = options.PersistSession;
-        SessionPersistor = options.SessionPersistor;
-        SessionRetriever = options.SessionRetriever;
-        SessionDestroyer = options.SessionDestroyer;
-
-        _api = new Api(options.Url, options.Headers);
-    }
-
-    /// <summary>
-    ///     Initializes a Client Asynchronously.
-    ///     Though <see cref="ClientOptions" /> <paramref name="options" /> are ... optional, one will likely
-    ///     need to define, at the very least, <see cref="ClientOptions.Url" />.
-    ///     If awaited, will asyncronously grab the session via <see cref="SessionRetriever" />
-    /// </summary>
-    /// <param name="options"></param>
-    /// <returns></returns>
-    public static async Task<AuthClient> CreateAsync(ClientOptions? options = null)
-    {
-        var client = new AuthClient(options);
-
-        // Retrieve the session
-        if (client.ShouldPersistSession)
-            await client.RetrieveSessionAsync();
-        return client;
-    }
-
-    /// <summary>
-    ///     Persists a Session in memory and calls (if specified) <see cref="ClientOptions.SessionPersistor" />
-    /// </summary>
-    /// <param name="session"></param>
-    internal async Task PersistSession(Session? session)
-    {
-        CurrentSession = session;
-        CurrentUser = session?.User;
-
-        var expiration = session?.ExpiresIn;
-
-        if (AutoRefreshToken && expiration != default)
-            InitRefreshTimer();
-
-        if (ShouldPersistSession)
-            await SessionPersistor.Invoke(session);
-    }
-
-    /// <summary>
-    ///     Persists a Session in memory and calls (if specified) <see cref="ClientOptions.SessionDestroyer" />
-    /// </summary>
-    internal async Task DestroySession()
-    {
-        CurrentSession = null;
-        CurrentUser = null;
-
-        if (ShouldPersistSession)
-            await SessionDestroyer.Invoke();
+        _api = new Api(options.Url!, options.Headers);
     }
 
     /// <summary>
     ///     Refreshes a Token
     /// </summary>
     /// <returns></returns>
-    internal async Task RefreshToken(string? refreshToken = null)
+    internal async Task<Session> RefreshToken(string refreshToken)
     {
-        if (string.IsNullOrEmpty(CurrentSession?.RefreshToken) && string.IsNullOrEmpty(refreshToken))
+        if (string.IsNullOrEmpty(refreshToken))
             throw new Exception("No current session.");
-
-        refreshToken ??= CurrentSession!.RefreshToken;
 
         var result = await _api.RefreshAccessToken(refreshToken);
 
         if (string.IsNullOrEmpty(result?.AccessToken))
             throw new Exception("Could not refresh token from provided session.");
 
-        CurrentSession = result;
-        CurrentUser = result.User;
-
-        if (ShouldPersistSession)
-            await SessionPersistor.Invoke(result);
-
-        StateChanged?.Invoke(this, new ClientStateChanged(AuthState.TokenRefreshed));
-        StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedIn));
-
-        if (AutoRefreshToken && CurrentSession.ExpiresIn != default)
-            InitRefreshTimer();
+        return result;
     }
-
-    internal void InitRefreshTimer()
-    {
-        if (CurrentSession == null || CurrentSession.ExpiresIn == default) return;
-
-        if (_refreshTimer != null)
-            _refreshTimer.Dispose();
-
-        try
-        {
-            var timeoutSeconds =
-                Convert.ToInt32((CurrentSession.CreatedAt.AddSeconds(CurrentSession.ExpiresIn - 60) - DateTime.Now)
-                    .TotalSeconds);
-            var timeout = TimeSpan.FromSeconds(timeoutSeconds);
-
-            async void TimerCallback(object? obj)
-            {
-                await _refreshTimer!.DisposeAsync();
-                await RefreshToken();
-            }
-
-            _refreshTimer = new Timer(TimerCallback, null, timeout, Timeout.InfiniteTimeSpan);
-        }
-        catch
-        {
-            Debug.WriteLine(
-                "Unable to parse session timestamp, refresh timer will not work. If persisting, open issue on Github");
-        }
-    }
-
-    /// <summary>
-    ///     Event Handler that raises an event when a user signs in, signs out, recovers password, or updates their record.
-    /// </summary>
-    public event EventHandler<ClientStateChanged>? StateChanged;
-
-    /// <summary>
-    ///     The current User
-    /// </summary>
-    public User? CurrentUser { get; private set; }
-
-    /// <summary>
-    ///     The current Session
-    /// </summary>
-    public Session? CurrentSession { get; private set; }
-
 
     /// <summary>
     ///     Signs up a user by email address
@@ -203,8 +56,6 @@ public class AuthClient : IAuthClient
     public async Task<Session?> SignUpAsync(SignUpType type, string identifier, string password,
         SignUpOptions? options = null)
     {
-        await DestroySession();
-
         try
         {
             Session? session = null;
@@ -216,15 +67,6 @@ public class AuthClient : IAuthClient
                 case SignUpType.Phone:
                     session = await _api.SignUpWithPhone(identifier, password, options);
                     break;
-            }
-
-            if (session?.User?.ConfirmedAt != null || (session?.User != null && Options.AllowUnconfirmedUserSessions))
-            {
-                await PersistSession(session);
-
-                StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedIn));
-
-                return CurrentSession;
             }
 
             return session;
@@ -244,8 +86,6 @@ public class AuthClient : IAuthClient
     /// <returns></returns>
     public async Task<bool> SignInAsync(string email, SignInOptions? options = null)
     {
-        await DestroySession();
-
         try
         {
             await _api.SendMagicLinkEmail(email, options);
@@ -291,8 +131,6 @@ public class AuthClient : IAuthClient
     public async Task<Session?> SignInAsync(SignInType type, string identifierOrToken, string? password = null,
         string? scopes = null)
     {
-        await DestroySession();
-
         try
         {
             Session? session = null;
@@ -311,24 +149,11 @@ public class AuthClient : IAuthClient
                     session = await _api.SignInWithPhone(identifierOrToken, password);
                     break;
                 case SignInType.RefreshToken:
-                    CurrentSession = new Session
-                    {
-                        RefreshToken = identifierOrToken
-                    };
-
-                    await RefreshToken();
-
-                    return CurrentSession;
+                    session = await RefreshToken(identifierOrToken);
+                    break;
             }
 
-            if (session?.User?.ConfirmedAt != null || (session?.User != null && Options.AllowUnconfirmedUserSessions))
-            {
-                await PersistSession(session);
-                StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedIn));
-                return CurrentSession;
-            }
-
-            return null;
+            return session;
         }
         catch (RequestException ex)
         {
@@ -343,7 +168,7 @@ public class AuthClient : IAuthClient
     /// </summary>
     /// <example>
     ///     var client = Supabase.Gotrue.Client.Initialize(options);
-    ///     var url = client.SignInAsync(Provider.Github);
+    ///     var url = client.SignIn(Provider.Github);
     ///     // Do Redirect User
     ///     // Example code
     ///     Application.HasRecievedOauth += async (uri) => {
@@ -353,10 +178,8 @@ public class AuthClient : IAuthClient
     /// <param name="provider"></param>
     /// <param name="scopes">A space-separated list of scopes granted to the OAuth application.</param>
     /// <returns></returns>
-    public async Task<string> SignInAsync(Provider provider, string? scopes = null)
+    public string SignIn(Provider provider, string? scopes = null)
     {
-        await DestroySession();
-
         var url = _api.GetUrlForProvider(provider, scopes);
         return url;
     }
@@ -371,16 +194,9 @@ public class AuthClient : IAuthClient
     {
         try
         {
-            await DestroySession();
-
             var session = await _api.VerifyMobileOTP(phone, token);
 
-            if (session?.AccessToken != null)
-            {
-                await PersistSession(session);
-                StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedIn));
-                return session;
-            }
+            if (session?.AccessToken != null) return session;
 
             return null;
         }
@@ -394,35 +210,25 @@ public class AuthClient : IAuthClient
     ///     Signs out a user and invalidates the current token.
     /// </summary>
     /// <returns></returns>
-    public async Task SignOutAsync()
+    public async Task SignOutAsync(string accessToken)
     {
-        if (CurrentSession?.AccessToken != null)
-        {
-            await _api.SignOut(CurrentSession.AccessToken);
-            if (_refreshTimer != null)
-                await _refreshTimer.DisposeAsync();
-            await DestroySession();
-            StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedOut));
-        }
+        await _api.SignOut(accessToken);
     }
 
     /// <summary>
     ///     Updates a User.
     /// </summary>
+    /// <param name="accessToken"></param>
     /// <param name="attributes"></param>
     /// <returns></returns>
-    public async Task<User?> UpdateAsync(UserAttributes attributes)
+    public async Task<User?> UpdateAsync(string accessToken, UserAttributes attributes)
     {
-        if (CurrentSession == null || string.IsNullOrEmpty(CurrentSession.AccessToken))
+        if (string.IsNullOrEmpty(accessToken))
             throw new Exception("Not Logged in.");
 
         try
         {
-            var result = await _api.UpdateUser(CurrentSession.AccessToken, attributes);
-
-            CurrentUser = result;
-
-            StateChanged?.Invoke(this, new ClientStateChanged(AuthState.UserUpdated));
+            var result = await _api.UpdateUser(accessToken, attributes);
 
             return result;
         }
@@ -591,35 +397,17 @@ public class AuthClient : IAuthClient
     /// <summary>
     ///     Refreshes the currently logged in User's Session.
     /// </summary>
+    /// <param name="refreshToken"></param>
     /// <returns></returns>
-    public async Task<Session?> RefreshSessionAsync()
+    public async Task<Session> RefreshSessionAsync(string refreshToken)
     {
-        if (CurrentSession == null || string.IsNullOrEmpty(CurrentSession.AccessToken))
+        if (string.IsNullOrEmpty(refreshToken))
             throw new Exception("Not Logged in.");
 
-        await RefreshToken();
+        var session = await RefreshToken(refreshToken);
 
-        var user = await _api.GetUser(CurrentSession.AccessToken);
-        CurrentUser = user;
-
-        return CurrentSession;
-    }
-
-    /// <summary>
-    ///     Overrides the JWT on the current session. The JWT will then be sent in all subsequent network requests.
-    /// </summary>
-    /// <param name="accessToken">The JWT access token.</param>
-    /// <returns>Session.</returns>
-    public Session? SetAuthAsync(string accessToken)
-    {
-        if (CurrentSession == null) CurrentSession = new Session();
-
-        CurrentSession.AccessToken = accessToken;
-        CurrentSession.TokenType = "bearer";
-        CurrentSession.User = CurrentUser;
-
-        StateChanged?.Invoke(this, new ClientStateChanged(AuthState.TokenRefreshed));
-        return CurrentSession;
+        session.User = await _api.GetUser(session.AccessToken);
+        return session;
     }
 
     /// <summary>
@@ -670,58 +458,6 @@ public class AuthClient : IAuthClient
             User = user
         };
 
-        if (storeSession)
-        {
-            await PersistSession(session);
-            StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedIn));
-
-            if (query.Get("type") == "recovery")
-                StateChanged?.Invoke(this, new ClientStateChanged(AuthState.PasswordRecovery));
-        }
-
         return session;
-    }
-
-    /// <summary>
-    ///     Retrieves the Session by calling <see cref="SessionRetriever" /> - sets internal state and timers.
-    /// </summary>
-    /// <returns></returns>
-    public async Task<Session?> RetrieveSessionAsync()
-    {
-        var session = await SessionRetriever();
-
-        if (session != null && session.ExpiresAt() < DateTime.Now)
-        {
-            if (AutoRefreshToken)
-                try
-                {
-                    await RefreshToken(session.RefreshToken);
-                    return CurrentSession;
-                }
-                catch
-                {
-                    await DestroySession();
-                    return null;
-                }
-
-            await DestroySession();
-            return null;
-        }
-
-        if (session == null || session.User == null)
-        {
-            Debug.WriteLine("Stored Session is missing data.");
-            await DestroySession();
-            return null;
-        }
-
-        CurrentSession = session;
-        CurrentUser = session.User;
-
-        StateChanged?.Invoke(this, new ClientStateChanged(AuthState.SignedIn));
-
-        InitRefreshTimer();
-
-        return CurrentSession;
     }
 }
