@@ -1,4 +1,4 @@
-﻿using SupabaseAuth.Attributes;
+﻿using Common.Attributes;
 
 namespace SupabaseAuth;
 

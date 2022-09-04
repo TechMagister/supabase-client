@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Web;
+using Common;
 using SupabaseAuth.Attributes;
 using SupabaseAuth.Options;
 using SupabaseAuth.Responses;
@@ -21,7 +22,7 @@ public class Api
         Url = url;
         _headers = headers;
 
-        if (!_headers.ContainsKey("X-Client-Info")) _headers.Add("X-Client-Info", Util.GetAssemblyVersion());
+        if (!_headers.ContainsKey("X-Client-Info")) _headers.Add("X-Client-Info", Util.GetAssemblyVersion(typeof(AuthClient).Assembly));
     }
 
     /// <summary>

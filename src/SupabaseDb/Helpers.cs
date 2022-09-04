@@ -1,0 +1,174 @@
+﻿using System.Text;
+using System.Web;
+using Common;
+using Newtonsoft.Json;
+using SupabaseDb.Extensions;
+using SupabaseDb.Responses;
+
+namespace SupabaseDb;
+
+internal static class Helpers
+{
+    private static readonly HttpClient Client = new();
+
+    public static T? GetPropertyValue<T>(object obj, string propName)
+    {
+        return (T?)obj.GetType().GetProperty(propName)?.GetValue(obj, null);
+    }
+
+    public static T? GetCustomAttribute<T>(object obj) where T : Attribute
+    {
+        return (T?)Attribute.GetCustomAttribute(obj.GetType(), typeof(T));
+    }
+
+    public static T? GetCustomAttribute<T>(Type type) where T : Attribute
+    {
+        return (T?)Attribute.GetCustomAttribute(type, typeof(T));
+    }
+
+    /// <summary>
+    ///     Helper to make a request using the defined parameters to an API Endpoint and coerce into a model.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="method"></param>
+    /// <param name="url"></param>
+    /// <param name="data"></param>
+    /// <param name="headers"></param>
+    /// <param name="serializerSettings"></param>
+    /// <returns></returns>
+    public static async Task<ModeledResponse<T>> MakeRequest<T>(
+        HttpMethod method,
+        string url,
+        JsonSerializerSettings serializerSettings,
+        object? data = null,
+        Dictionary<string, string>? headers = null)
+    {
+        var baseResponse = await MakeRequest(method, url, serializerSettings, data, headers);
+        return new ModeledResponse<T>(baseResponse, serializerSettings);
+    }
+
+    /// <summary>
+    ///     Helper to make a request using the defined parameters to an API Endpoint.
+    /// </summary>
+    /// <param name="method"></param>
+    /// <param name="url"></param>
+    /// <param name="data"></param>
+    /// <param name="headers"></param>
+    /// <param name="serializerSettings"></param>
+    /// <exception cref="RequestException"></exception>
+    /// <returns></returns>
+    public static async Task<BaseResponse> MakeRequest(
+        HttpMethod method,
+        string url,
+        JsonSerializerSettings serializerSettings,
+        object? data = null,
+        Dictionary<string, string>? headers = null)
+    {
+        var builder = new UriBuilder(url);
+        var query = HttpUtility.ParseQueryString(builder.Query);
+
+        if (data != null && method == HttpMethod.Get)
+            // Case if it's a Get request the data object is a dictionary<string,string>
+            if (data is Dictionary<string, string> reqParams)
+                foreach (var param in reqParams)
+                    query[param.Key] = param.Value;
+
+        builder.Query = query.ToString();
+
+        using var requestMessage = new HttpRequestMessage(method, builder.Uri);
+
+        if (data != null && method != HttpMethod.Get)
+        {
+            var stringContent = JsonConvert.SerializeObject(data, serializerSettings);
+
+            if (!string.IsNullOrWhiteSpace(stringContent))
+                requestMessage.Content = new StringContent(stringContent,
+                    Encoding.UTF8, "application/json");
+        }
+
+        if (headers != null)
+            foreach (var kvp in headers)
+                requestMessage.Headers.TryAddWithoutValidation(kvp.Key, kvp.Value);
+
+        var response = await Client.SendAsync(requestMessage);
+        var content = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            ErrorResponse? obj;
+
+            try
+            {
+                obj = JsonConvert.DeserializeObject<ErrorResponse>(content);
+                if (obj != null) obj.Content = content;
+            }
+            catch (JsonException)
+            {
+                obj = new ErrorResponse
+                {
+                    Message =
+                        "Invalid or Empty response received. Are you trying to update or delete a record that does not exist?"
+                };
+            }
+
+            throw new RequestException(response, obj);
+        }
+
+        return new BaseResponse { Content = content, ResponseMessage = response };
+    }
+
+    /// <summary>
+    ///     Prepares the request with appropriate HTTP headers expected by Postgrest.
+    /// </summary>
+    /// <param name="method"></param>
+    /// <param name="headers"></param>
+    /// <param name="options"></param>
+    /// <param name="rangeFrom"></param>
+    /// <param name="rangeTo"></param>
+    /// <returns></returns>
+    public static Dictionary<string, string> PrepareRequestHeaders(
+        HttpMethod method,
+        Dictionary<string, string>? headers = null,
+        DbClientOptions? options = null,
+        int rangeFrom = int.MinValue,
+        int rangeTo = int.MinValue)
+    {
+        options ??= new DbClientOptions();
+
+        headers = headers == null
+            ? new Dictionary<string, string>(options.Headers)
+            : options.Headers.MergeLeft(headers);
+
+        if (!string.IsNullOrEmpty(options.Schema))
+            headers.Add(method == HttpMethod.Get
+                ? "Accept-Profile"
+                : "Content-Profile", options.Schema);
+
+        if (rangeFrom != int.MinValue)
+        {
+            var formatRangeTo = rangeTo != int.MinValue
+                ? rangeTo.ToString()
+                : null;
+
+            headers.Add("Range-Unit", "items");
+            headers.Add("Range", $"{rangeFrom}-{formatRangeTo}");
+        }
+
+        if (!headers.ContainsKey("X-Client-Info"))
+            headers.Add("X-Client-Info", Util.GetAssemblyVersion(typeof(IDbClient).Assembly));
+
+        return headers;
+    }
+}
+
+public class RequestException : Exception
+{
+    public HttpResponseMessage Response { get; }
+    public ErrorResponse? Error { get; }
+
+    public RequestException(HttpResponseMessage response, ErrorResponse? error) : base(error?.Message)
+    {
+        Response = response;
+        Error = error;
+    }
+}

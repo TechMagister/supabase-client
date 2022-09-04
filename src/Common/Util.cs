@@ -1,12 +1,11 @@
 ﻿using System.Reflection;
 
-namespace SupabaseAuth;
+namespace Common;
 
 public static class Util
 {
-    public static string GetAssemblyVersion()
+    public static string GetAssemblyVersion(Assembly assembly)
     {
-        var assembly = typeof(AuthClient).Assembly;
         var informationVersion =
             assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var name = assembly.GetName().Name;

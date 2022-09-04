@@ -52,7 +52,7 @@ public interface IAuthClient
         string? scopes = null);
 
     /// <summary>
-    ///     Retrieves a Url to redirect to for signing in with a <see cref="SupabaseAuth.AuthClient.Provider" />.
+    ///     Retrieves a Url to redirect to for signing in with a <see cref="Provider" />.
     ///     This method will need to be combined with <see cref="GetSessionFromUrlAsync" /> when the
     ///     Application receives the Oauth Callback.
     /// </summary>

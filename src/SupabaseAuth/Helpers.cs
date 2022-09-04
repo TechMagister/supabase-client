@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Web;
-using SupabaseAuth.Attributes;
+using Common.Attributes;
 using SupabaseAuth.Responses;
 
 namespace SupabaseAuth;

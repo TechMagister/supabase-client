@@ -7,7 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Common\Common.csproj" />
+        <PackageReference Include="postgrest-csharp" Version="2.0.11"/>
+        <PackageReference Include="realtime-csharp" Version="3.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SupabaseAuth\SupabaseAuth.csproj"/>
     </ItemGroup>
 
 </Project>

@@ -1,10 +1,10 @@
-﻿namespace SupabaseAuth.Attributes;
+﻿namespace Common.Attributes;
 
 /// <summary>
 ///     Used internally to add a string value to a C# field.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field)]
-internal class MapToAttribute : Attribute
+public class MapToAttribute : Attribute
 {
     public string Mapping { get; set; }
     public string? Formatter { get; set; }
