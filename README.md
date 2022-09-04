@@ -34,6 +34,8 @@ Inspired by and reuse the code from :
 
 Getting started will be pretty easy, allowing dependencies injection.
 
+Sample usage can be found here : [TechMagister/SupaAppTemplate](https://github.com/TechMagister/SupaAppTemplate)
+
 @TODO 
 
 ### Models:
